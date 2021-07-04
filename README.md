@@ -156,5 +156,153 @@ export class IdeaEntity {
     nest g controller idea
 ```
 
-- 
+- We need a service for idea 
+
+```bash
+    nest g service idea
+```
+
+- This three cli command creted 3 files into the project
+- Lets open the controller file first `idea.controller.ts`
+
+```ts
+    import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from "@nestjs/common";
+import { IdeaDTO } from "./idea.dto";
+import { IdeaService } from "./idea.service";
+
+@Controller("idea")
+export class IdeaController {
+  constructor(private ideaService: IdeaService) {}
+
+  @Get()
+  showAllIdeas() {
+    return this.ideaService.showAll();
+  }
+
+  @Post()
+  createIdea(@Body() data: IdeaDTO) {
+    return this.ideaService.create(data);
+  }
+
+  @Get(":id")
+  readIdea(@Param("id") id: string) {
+    return this.ideaService.read(id);
+  }
+
+  @Put(":id")
+  updateIdea(@Param("id") id: string, @Body() data: Partial<IdeaDTO>) {
+    return this.ideaService.update(id, data);
+  }
+
+  @Delete(":id")
+  destroyIdea(@Param("id") id: string) {
+    return this.ideaService.destroy(id);
+  }
+}
+
+```
+
+- now we have to connect the dependencies to the `idea.module.ts`
+
+```ts
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm"; // this line
+import { IdeaController } from "./idea.controller";
+import { IdeaEntity } from "./idea.entity";     // this line
+import { IdeaService } from "./idea.service";
+
+@Module({
+  imports: [TypeOrmModule.forFeature([IdeaEntity])],  // add this line
+  controllers: [IdeaController],
+  providers: [IdeaService],
+})
+export class IdeaModule {}
+
+```
+
+- Finally go to the service file `idea.service.ts`
+
+```ts
+
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { IdeaDTO } from "./idea.dto";
+import { IdeaEntity } from "./idea.entity";
+
+@Injectable()
+export class IdeaService {
+  constructor(
+    @InjectRepository(IdeaEntity)
+    private ideaRepository: Repository<IdeaEntity>
+  ) {}
+
+  async showAll() {
+    return await this.ideaRepository.find();
+  }
+
+  async create(data: IdeaDTO) {
+    const idea = await this.ideaRepository.create(data);
+    await this.ideaRepository.save(idea);
+    return idea;
+  }
+
+  async read(id: string) {
+    return await this.ideaRepository.findOne({ where: { id } });
+  }
+
+  async update(id: string, data: Partial<IdeaDTO>) {
+    await this.ideaRepository.update({ id }, data);
+    return await this.ideaRepository.findOne({ id });
+  }
+
+  async destroy(id: string) {
+    await this.ideaRepository.delete({ id });
+    return { delete: true };
+  }
+}
+
+
+```
+
+- Lets make a file called DTO `idea.dto.ts` and put below code to that file
+
+```ts
+
+export interface IdeaDTO {
+  idea: string;
+  description: string;
+}
+
+```
+
+- Now reopen the `app.module.ts` and add the dependencies to that file
+
+```ts
+
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { IdeaModule } from './idea/idea.module';  // imported the IdeaModule
+
+@Module({
+  imports: [TypeOrmModule.forRoot(), IdeaModule],  // here IdeaModule added
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+
+
+```
+
+4. 
 
