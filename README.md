@@ -22,7 +22,7 @@ A place to store peoples idea in a style of reddit and twitter website
 
 ## Nest Work Step by Step
 
-- At first I installed the project using Nestjs Cli and followed the documentation
+1. At first I installed the project using Nestjs Cli and followed the documentation
 
 ```bash
     $ npm i -g @nestjs/cli
@@ -61,13 +61,13 @@ async function bootstrap() {
 bootstrap();
 
 ```
-- Secondly, I created the Database connection using postgres. Also added package for ORM
+2. Secondly, I created the Database connection using postgres. Also added package for ORM
 
 ```bash
     yarn add pg typeorm @nestjs/typeorm
 ```
 - After installing the packages, I made a postgres database in my machine.
-- For ORM i made a file into the root directory called `ormconfig.json`
+- For ORM I made a file into the root directory called `ormconfig.json`
 - Add this code to that file
 
 ```json
@@ -103,6 +103,58 @@ import { AppService } from './app.service';
 })
 export class AppModule {}
 
+```
 
+- Made a direactory 
+
+```bash
+ $ mkdir src/ideas
+```
+
+- Make a file called `idea.entity.ts` and add below code
+
+```ts
+
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+} from "typeorm";
+
+@Entity("idea")
+export class IdeaEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+
+  @CreateDateColumn()
+  created: Date;
+
+  @Column("text")
+  idea: string;
+
+  @Column("text")
+  description: string;
+}
 
 ```
+
+- Successfully made the data model `idea.entity`.
+- Now we will find our (`ideas`) table with the data model (`idea.entity`) in postgres
+
+3. CRUD Operations
+
+- I am going to make a module for idea using nest cli
+
+```bash
+    nest g mo idea
+```
+
+- now I need to generate controller
+
+```bash 
+    nest g controller idea
+```
+
+- 
+
