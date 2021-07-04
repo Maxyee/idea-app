@@ -66,4 +66,43 @@ bootstrap();
 ```bash
     yarn add pg typeorm @nestjs/typeorm
 ```
-- Install the pg admin
+- After installing the packages, I made a postgres database in my machine.
+- For ORM i made a file into the root directory called `ormconfig.json`
+- Add this code to that file
+
+```json
+
+{
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "",
+    "database": "ideas",
+    "synchronize": true,
+    "loggin": true,
+    "entities": ["./src/**/*.entity.{.ts,.js}", "./dist/**/*.entity.js"]
+}
+
+
+```
+
+- After add this code into the file we have to import Typeorm to the `app.module.ts`
+
+```ts
+
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm'; // add this line
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [TypeOrmModule.forRoot()], // import here
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+
+
+
+```
