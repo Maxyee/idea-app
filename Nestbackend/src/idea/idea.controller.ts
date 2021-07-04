@@ -8,7 +8,7 @@ import {
   Param,
 } from "@nestjs/common";
 import { IdeaDTO } from "./idea.dto";
-import { IdeaService } from "./idea/idea.service";
+import { IdeaService } from "./idea.service";
 
 @Controller("idea")
 export class IdeaController {

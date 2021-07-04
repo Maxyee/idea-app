@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { IdeaDTO } from "../idea.dto";
-import { IdeaEntity } from "../idea.entity";
+import { IdeaDTO } from "./idea.dto";
+import { IdeaEntity } from "./idea.entity";
 
 @Injectable()
 export class IdeaService {
