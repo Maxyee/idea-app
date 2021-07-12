@@ -416,3 +416,221 @@ providers: [
   ],
 
 ```
+
+6. Validation Error
+
+- Lets validating the service `idea.service.ts`
+- do change for `read` method
+
+```ts
+
+  async read(id: string) {
+    const idea = await this.ideaRepository.findOne({ where: { id } });
+    if (!idea) {
+      throw new HttpException("Not found", HttpStatus.NOT_FOUND);
+    }
+    return idea;
+  }
+
+```
+
+- then change for `update` method
+
+```ts
+
+  async update(id: string, data: Partial<IdeaDTO>) {
+    const idea = await this.ideaRepository.findOne({ where: { id } });
+    if (!idea) {
+      throw new HttpException("Not Found", HttpStatus.NOT_FOUND);
+    }
+    await this.ideaRepository.update({ id }, data);
+    return idea;
+  }
+
+```
+
+- finally change the `destroy` method
+
+```ts
+
+  async destroy(id: string) {
+    const idea = await this.ideaRepository.findOne({ where: { id } });
+    if (!idea) {
+      throw new HttpException("Not Found", HttpStatus.NOT_FOUND);
+    }
+    await this.ideaRepository.delete({ id });
+    return idea;
+  }
+
+```
+
+- lets do some work with `class-transformer` and `class validator`
+- for that we need to install this two packages
+
+```bash
+npm install class-transformer class-validator
+
+```
+
+- lets make another file in shared folder
+
+```bash
+
+touch src/shared/validation.pipe.ts
+
+```
+
+- now put this code to that `validation.pipe.ts` file. you can find this code in nestjs website docs
+
+```ts
+import {
+  PipeTransform,
+  Injectable,
+  ArgumentMetadata,
+  BadRequestException,
+} from "@nestjs/common";
+import { validate } from "class-validator";
+import { plainToClass } from "class-transformer";
+
+@Injectable()
+export class ValidationPipe implements PipeTransform<any> {
+  async transform(value: any, metadata: ArgumentMetadata) {
+    // did some change on this line
+    const { metatype } = metadata; // amd this line too
+    if (!metatype || !this.toValidate(metatype)) {
+      return value;
+    }
+    const object = plainToClass(metatype, value);
+    const errors = await validate(object);
+    if (errors.length > 0) {
+      throw new BadRequestException("Validation failed");
+    }
+    return value;
+  }
+
+  private toValidate(metatype: Function): boolean {
+    const types: Function[] = [String, Boolean, Number, Array, Object];
+    return !types.includes(metatype);
+  }
+}
+```
+
+- lets wrap this validator to our `DTO` file
+- open the `idea.dto.ts` file and make this changes
+
+```ts
+import { IsString } from "class-validator";
+
+export class IdeaDTO {
+  @IsString()
+  idea: string;
+
+  @IsString()
+  description: string;
+}
+```
+
+- lets some extra validation method in `validation.pipe.ts` file
+
+```ts
+
+    if (errors.length > 0) {
+      throw new HttpException(
+        `Validation failed: ${this.formatErrors(errors)}`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+
+    private formatErrors(errors: any[]) {
+    return errors
+      .map((err) => {
+        for (let property in err.constraints) {
+          return err.constraints[property];
+        }
+      })
+      .join(", ");
+    }
+
+    private isEmpty(value: any) {
+      if (Object.keys(value).length > 0) {
+        return false;
+      }
+      return true;
+    }
+
+
+```
+
+- now we have to add some extra code for validating the body data of Object
+- open the `validation.pipe.ts` file and add this extra code
+
+```ts
+if (value instanceof Object && this.isEmpty(value)) {
+  throw new HttpException(
+    "Validation failed: No body submitted",
+    HttpStatus.BAD_REQUEST
+  );
+}
+```
+
+- lets add our validation work to the controller file. open the `idea.controller.ts` file
+- change this code
+
+```ts
+import {
+  UsePipes,
+} from "@nestjs/common";
+
+  @Post()
+  @UsePipes(new ValidationPipe())
+  createIdea(@Body() data: IdeaDTO) {
+    return this.ideaService.create(data);
+  }
+
+  @Put(":id")
+  @UsePipes(new ValidationPipe())
+  updateIdea(@Param("id") id: string, @Body() data: Partial<IdeaDTO>) {
+    return this.ideaService.update(id, data);
+  }
+
+```
+
+- change the `update` method from the service `idea.service.ts`
+
+```ts
+  async update(id: string, data: Partial<IdeaDTO>) {
+    let idea = await this.ideaRepository.findOne({ where: { id } }); // this line
+    if (!idea) {
+      throw new HttpException("Not Found", HttpStatus.NOT_FOUND);
+    }
+    await this.ideaRepository.update({ id }, data);
+    idea = await this.ideaRepository.findOne({ where: { id } }); // add this line
+    return idea;
+  }
+
+```
+
+- add logger to the controller to show the data to the console
+- open the file called `idea.controller.ts`
+
+```ts
+private logger = new Logger("IdeaController");
+
+  @Post()
+  @UsePipes(new ValidationPipe())
+  createIdea(@Body() data: IdeaDTO) {
+    this.logger.log(JSON.stringify(data)); // add this line
+    return this.ideaService.create(data);
+  }
+
+
+  @Put(":id")
+  @UsePipes(new ValidationPipe())
+  updateIdea(@Param("id") id: string, @Body() data: Partial<IdeaDTO>) {
+    this.logger.log(JSON.stringify(data));  // add this line
+    return this.ideaService.update(id, data);
+  }
+
+
+```
