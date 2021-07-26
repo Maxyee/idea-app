@@ -632,5 +632,36 @@ private logger = new Logger("IdeaController");
     return this.ideaService.update(id, data);
   }
 
+```
+
+7. User Module
+
+- for creating a user module we have to create `user-model`, `user-controller`, `user-service`, `user-dto`, `user-entity`
+
+```ts
+nest g mo user
+nest g controller user
+nest g service user
+touch src/user/user.dto.ts
+touch src/user/user.entity.ts
+```
+
+- after installing all the files we have to install 2 more packages `bcryptjs`, `jsonwebtoken`
+
+```bash
+npm install bcryptjs jsonwebtoken
+```
+
+- lets install the devdependencies for `bycrptjs` and `jsonwebtoken`
+
+```bash
+npm install -D @types/jsonwebtoken @types/bcryptjs
+```
+
+- finally we are done with the all of the dependencies and devdependencies for `User`
+
+- Lets create the User `data model` in `user.entity.ts` file
+
+```ts
 
 ```
