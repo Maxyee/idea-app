@@ -417,7 +417,7 @@ providers: [
 
 ```
 
-6. Validation Error
+5. Validation Error
 
 - Lets validating the service `idea.service.ts`
 - do change for `read` method
@@ -634,7 +634,7 @@ private logger = new Logger("IdeaController");
 
 ```
 
-7. User Module
+6. User Module
 
 - for creating a user module we have to create `user-model`, `user-controller`, `user-service`, `user-dto`, `user-entity`
 
@@ -663,5 +663,214 @@ npm install -D @types/jsonwebtoken @types/bcryptjs
 - Lets create the User `data model` in `user.entity.ts` file
 
 ```ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  Column,
+  BeforeInsert,
+} from "typeorm";
+import * as bcrypt from "bcryptjs"; // non typescript package that why we imported this way
 
+@Entity("user")
+export class UserEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+
+  @CreateDateColumn()
+  created: Date;
+
+  @Column({
+    type: "text",
+    unique: true,
+  })
+  username: string;
+
+  @Column("text")
+  password: string;
+
+  @BeforeInsert() // its a decorator who will do task before execution
+  async hashPassword() {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+
+  toResponseObject() {
+    const { id, created, username } = this;
+    return { id, created, username };
+  }
+}
 ```
+
+- now open the file called `user.module.ts`
+
+```ts
+import { UserController } from "./user.controller";
+import { UserService } from "./user.service";
+import { TypeOrmModule } from "@nestjs/typeorm"; // add this line
+import { UserEntity } from "./user.entity"; // add this line
+
+@Module({
+  imports: [TypeOrmModule.forFeature([UserEntity])], // add this line
+  controllers: [UserController],
+  providers: [UserService],
+})
+export class UserModule {}
+```
+
+- lets do the task for controller `user.controller.ts`
+
+```ts
+import { Controller, Post, Get, Body, UsePipes } from "@nestjs/common";
+import { UserService } from "./user.service";
+import { UserDTO } from "./user.dto";
+import { ValidationPipe } from "src/shared/validation.pipe";
+
+@Controller()
+export class UserController {
+  constructor(private userService: UserService) {}
+
+  @Get("api/users")
+  shwoAllUsers() {
+    this.userService.showAll();
+  }
+
+  @Post("login")
+  @UsePipes(new ValidationPipe())
+  login(@Body() data: UserDTO) {
+    this.userService.login(data);
+  }
+
+  @Post("register")
+  @UsePipes(new ValidationPipe())
+  register(@Body() data: UserDTO) {
+    this.userService.register(data);
+  }
+}
+```
+
+- add code for `user.dto.ts`
+
+```ts
+import { IsNotEmpty } from "class-validator";
+
+export class UserDTO {
+  @IsNotEmpty()
+  username: string;
+
+  @IsNotEmpty()
+  password: string;
+}
+```
+
+- follow the same process for `user.entity.ts` and `user.service.ts` file
+
+```ts
+// user.entity.ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  Column,
+  BeforeInsert,
+} from "typeorm";
+import * as bcrypt from "bcryptjs";
+import * as jwt from "jsonwebtoken";
+import { UserResponseObject } from "./user.dto";
+
+@Entity("user")
+export class UserEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+
+  @CreateDateColumn()
+  created: Date;
+
+  @Column({
+    type: "text",
+    unique: true,
+  })
+  username: string;
+
+  @Column("text")
+  password: string;
+
+  @BeforeInsert()
+  async hashPassword() {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+
+  toResponseObject(showToken: boolean = true): UserResponseObject {
+    const { id, created, username, token } = this;
+    const responseObject: any = { id, created, username };
+
+    if (showToken) {
+      responseObject.token = token;
+    }
+    return responseObject;
+  }
+
+  async comparePassword(attempt: string) {
+    return await bcrypt.compare(attempt, this.password);
+  }
+
+  private get token() {
+    const { id, username } = this;
+    return jwt.sign(
+      {
+        id,
+        username,
+      },
+      process.env.SECRET,
+      { expiresIn: "7d" }
+    );
+  }
+}
+```
+
+- and finally
+
+```ts
+//user.service.ts
+import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
+import { UserEntity } from "./user.entity";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { UserDTO, UserResponseObject } from "./user.dto";
+
+@Injectable()
+export class UserService {
+  constructor(
+    @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+  ) {}
+
+  async showAll(): Promise<UserResponseObject[]> {
+    const users = await this.userRepository.find();
+    return users.map((user) => user.toResponseObject(false));
+  }
+
+  async login(data: UserDTO): Promise<UserResponseObject> {
+    const { username, password } = data;
+    const user = await this.userRepository.findOne({ where: { username } });
+    if (!user || !(await user.comparePassword(password))) {
+      throw new HttpException(
+        "Invalid username/password",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    return user.toResponseObject();
+  }
+
+  async register(data: UserDTO): Promise<UserResponseObject> {
+    const { username } = data;
+    let user = await this.userRepository.findOne({ where: { username } });
+    if (user) {
+      throw new HttpException("User already exists", HttpStatus.BAD_REQUEST);
+    }
+    user = await this.userRepository.create(data);
+    await this.userRepository.save(user);
+    return user.toResponseObject();
+  }
+}
+```
+
+- at last, if we test the API through postman, we will get the token and register user
